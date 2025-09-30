@@ -1,15 +1,32 @@
-# CentOS Stream 10 bootc ISO Builder Script (Windows)
-# Usage: .\build-bootc-iso.ps1 [ConfigFile]
+# Universal bootc ISO Builder Script (Windows)
+# Usage: .\build-bootc-iso.ps1 [BootcImage] [ConfigFile] [OutputDir]
+# Examples:
+#   .\build-bootc-iso.ps1
+#   .\build-bootc-iso.ps1 "quay.io/centos-bootc/centos-bootc:stream10"
+#   .\build-bootc-iso.ps1 "registry.redhat.io/rhel9/rhel-bootc:latest" "my-config.toml"
+#   .\build-bootc-iso.ps1 "quay.io/fedora/fedora-bootc:40" "config.toml" "./my-output"
 
 Param(
+    [string]$BootcImage = "quay.io/centos-bootc/centos-bootc:stream10",
     [string]$ConfigFile = "config.toml",
     [string]$OutputDir = "$PWD\output",
-    [string]$BuilderImage = "quay.io/centos-bootc/bootc-image-builder:latest",
-    [string]$BootcImage = "quay.io/centos-bootc/centos-bootc:stream10"
+    [string]$BuilderImage = "quay.io/centos-bootc/bootc-image-builder:latest"
 )
 
+Write-Host "[INFO] Building ISO for bootc image: $BootcImage" -ForegroundColor Blue
 Write-Host "[INFO] Using config: $ConfigFile" -ForegroundColor Blue
 Write-Host "[INFO] Output directory: $OutputDir" -ForegroundColor Blue
+
+# Validate bootc image format
+if ($BootcImage -notmatch '^[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+$') {
+    Write-Host "[ERROR] Invalid bootc image format: $BootcImage" -ForegroundColor Red
+    Write-Host "Expected format: registry/namespace/image:tag" -ForegroundColor Yellow
+    Write-Host "Examples:" -ForegroundColor Yellow
+    Write-Host "  quay.io/centos-bootc/centos-bootc:stream10" -ForegroundColor Gray
+    Write-Host "  registry.redhat.io/rhel9/rhel-bootc:latest" -ForegroundColor Gray
+    Write-Host "  quay.io/fedora/fedora-bootc:40" -ForegroundColor Gray
+    exit 1
+}
 
 # Create output directory
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
@@ -50,6 +67,7 @@ $result = & podman @buildArgs
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "[SUCCESS] ISO build completed!" -ForegroundColor Green
+    Write-Host "[INFO] Built from bootc image: $BootcImage" -ForegroundColor Blue
     Write-Host "Output files:" -ForegroundColor Blue
     Get-ChildItem -Path $OutputDir
     
@@ -59,6 +77,7 @@ if ($LASTEXITCODE -eq 0) {
         $isoSize = [math]::Round($isoFile.Length / 1GB, 2)
         Write-Host "[INFO] Generated ISO: $($isoFile.Name) ($isoSize GB)" -ForegroundColor Green
         Write-Host "[INFO] This ISO provides full interactive Anaconda installer" -ForegroundColor Green
+        Write-Host "[INFO] Based on: $BootcImage" -ForegroundColor Blue
     }
 } else {
     Write-Host "[ERROR] Build failed. Check the output above for details." -ForegroundColor Red

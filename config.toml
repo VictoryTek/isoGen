@@ -38,15 +38,6 @@ graphical
 services --enabled=sshd,chronyd,NetworkManager
 """
 
-# Additional packages for better Anaconda experience
-[customizations]
-packages = [
-    "NetworkManager-wifi",
-    "chrony", 
-    "openssh-server",
-    "glibc-langpack-en"
-]
-
 # Kernel parameters for better hardware compatibility
 [customizations.kernel]
 append = "rd.auto rd.neednet=1"

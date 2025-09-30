@@ -1,19 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# CentOS Stream 10 bootc ISO Builder Script
-# Usage: ./build-bootc-iso.sh [config-file]
+# Universal bootc ISO Builder Script
+# Usage: ./build-bootc-iso.sh [bootc-image] [config-file]
+# Examples:
+#   ./build-bootc-iso.sh
+#   ./build-bootc-iso.sh quay.io/centos-bootc/centos-bootc:stream10
+#   ./build-bootc-iso.sh registry.redhat.io/rhel9/rhel-bootc:latest my-config.toml
+#   ./build-bootc-iso.sh quay.io/fedora/fedora-bootc:40 config.toml
 
-CONFIG_FILE="${1:-config.toml}"
+BOOTC_IMAGE="${1:-quay.io/centos-bootc/centos-bootc:stream10}"
+CONFIG_FILE="${2:-config.toml}"
 OUTPUT_DIR="$(pwd)/output"
 BUILDER_IMAGE="quay.io/centos-bootc/bootc-image-builder:latest"
-BOOTC_IMAGE="quay.io/centos-bootc/centos-bootc:stream10"
 
+echo "[INFO] Building ISO for bootc image: $BOOTC_IMAGE"
 echo "[INFO] Using config: $CONFIG_FILE"
 echo "[INFO] Output directory: $OUTPUT_DIR"
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
+
+# Validate bootc image format
+if [[ ! "$BOOTC_IMAGE" =~ ^[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+$ ]]; then
+    echo "[ERROR] Invalid bootc image format: $BOOTC_IMAGE"
+    echo "Expected format: registry/namespace/image:tag"
+    echo "Examples:"
+    echo "  quay.io/centos-bootc/centos-bootc:stream10"
+    echo "  registry.redhat.io/rhel9/rhel-bootc:latest"
+    echo "  quay.io/fedora/fedora-bootc:40"
+    exit 1
+fi
 
 # Check if config file exists
 if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -43,6 +60,7 @@ sudo podman run --rm -it --privileged \
 
 if [[ $? -eq 0 ]]; then
     echo "[SUCCESS] ISO build completed!"
+    echo "[INFO] Built from bootc image: $BOOTC_IMAGE"
     echo "Output files:"
     ls -la "$OUTPUT_DIR"
     
@@ -52,6 +70,7 @@ if [[ $? -eq 0 ]]; then
         ISO_SIZE=$(du -h "$ISO_FILE" | cut -f1)
         echo "[INFO] Generated ISO: $(basename "$ISO_FILE") (${ISO_SIZE})"
         echo "[INFO] This ISO provides full interactive Anaconda installer"
+        echo "[INFO] Based on: $BOOTC_IMAGE"
     fi
 else
     echo "[ERROR] Build failed. Check the output above for details."
