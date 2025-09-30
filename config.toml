@@ -1,0 +1,56 @@
+# Enhanced config.toml with more Anaconda packages and options
+[customizations.installer.modules]
+enable = [
+  "org.fedoraproject.Anaconda.Modules.Users",
+  "org.fedoraproject.Anaconda.Modules.Storage", 
+  "org.fedoraproject.Anaconda.Modules.Network",
+  "org.fedoraproject.Anaconda.Modules.Localization",
+  "org.fedoraproject.Anaconda.Modules.Timezone",
+  "org.fedoraproject.Anaconda.Modules.Services"
+]
+
+[customizations.installer.kickstart]
+contents = """
+#version=DEVEL
+# Full interactive mode with all options available
+interactive
+
+# Default settings (user can change in UI)
+lang en_US.UTF-8
+keyboard us
+timezone UTC --utc
+
+# Network setup (configurable in UI)
+network --bootproto=dhcp --device=link --activate
+network --hostname=centos-bootc
+
+# Security defaults
+firewall --enabled --service=ssh
+selinux --enforcing
+
+# Accept EULA automatically
+eula --agreed
+
+# Use graphical installer if available, fallback to text
+graphical
+
+# Enable SSH for remote management
+services --enabled=sshd,chronyd,NetworkManager
+"""
+
+# Additional packages for better Anaconda experience
+[[customizations.rpm]]
+name = "NetworkManager-wifi"
+
+[[customizations.rpm]]
+name = "chrony"
+
+[[customizations.rpm]]
+name = "openssh-server"
+
+[[customizations.rpm]]
+name = "glibc-langpack-en"
+
+# Kernel parameters for better hardware compatibility
+[customizations.kernel]
+append = "rd.auto rd.neednet=1"
