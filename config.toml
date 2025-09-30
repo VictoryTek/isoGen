@@ -39,17 +39,13 @@ services --enabled=sshd,chronyd,NetworkManager
 """
 
 # Additional packages for better Anaconda experience
-[[customizations.rpm]]
-name = "NetworkManager-wifi"
-
-[[customizations.rpm]]
-name = "chrony"
-
-[[customizations.rpm]]
-name = "openssh-server"
-
-[[customizations.rpm]]
-name = "glibc-langpack-en"
+[customizations]
+packages = [
+    "NetworkManager-wifi",
+    "chrony", 
+    "openssh-server",
+    "glibc-langpack-en"
+]
 
 # Kernel parameters for better hardware compatibility
 [customizations.kernel]
