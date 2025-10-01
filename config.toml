@@ -13,7 +13,7 @@ enable = [
 contents = """
 #version=DEVEL
 # Full interactive mode with all options available
-interactive
+# Note: Remove 'interactive' command as it's deprecated in modern Anaconda
 
 # Default settings (user can change in UI)
 lang en_US.UTF-8
