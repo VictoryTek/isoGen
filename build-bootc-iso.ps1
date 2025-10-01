@@ -193,23 +193,32 @@ if ($podmanAvailable) {
 Write-Host "[INFO] Building Anaconda ISO..." -ForegroundColor Blue
 Write-Host "This may take 10-30 minutes depending on your system." -ForegroundColor Yellow
 
-# Build arguments (works for both podman and docker)
+# Build arguments - different for podman vs docker
 $buildArgs = @(
-    "run", "--rm", "-it", "--privileged",
-    "--pull=newer"
+    "run", "--rm", "-it", "--privileged"
 )
 
-# Add podman-specific options if using podman
+# Add runtime-specific options
 if ($podmanAvailable) {
+    # Podman-specific options
     $buildArgs += @(
+        "--pull=newer",
         "--security-opt", "label=type:unconfined_t",
         "-v", "${OutputDir}:/output:Z",
         "-v", "/var/lib/containers/storage:/var/lib/containers/storage",
         "-v", "${ConfigFile}:/config.toml:Z"
     )
 } else {
-    # Docker-specific volume mounts (no SELinux labels)
+    # Docker-specific options (no --pull=newer, no SELinux labels)
+    # Convert Windows paths to Docker-compatible format
+    $dockerOutputDir = $OutputDir -replace '\\', '/' -replace '^([A-Za-z]):', '/c'
+    $dockerConfigFile = (Resolve-Path $ConfigFile).Path -replace '\\', '/' -replace '^([A-Za-z]):', '/c'
+    
+    Write-Host "[DEBUG] Docker output dir: $dockerOutputDir" -ForegroundColor Gray
+    Write-Host "[DEBUG] Docker config file: $dockerConfigFile" -ForegroundColor Gray
+    
     $buildArgs += @(
+        "--pull", "always",
         "-v", "${OutputDir}:/output",
         "-v", "${ConfigFile}:/config.toml"
     )
@@ -223,7 +232,27 @@ $buildArgs += @(
     $BootcImage
 )
 
+Write-Host "[DEBUG] Full command: $containerCmd $($buildArgs -join ' ')" -ForegroundColor Gray
+Write-Host ""
+
+# Execute the build command
+Write-Host "[INFO] Executing build command..." -ForegroundColor Yellow
 $result = & $containerCmd @buildArgs
+
+# Check if the command was successful
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "[ERROR] Container build failed with exit code: $LASTEXITCODE" -ForegroundColor Red
+    Write-Host "[INFO] This could be due to:" -ForegroundColor Yellow
+    Write-Host "  - Docker Desktop not running properly" -ForegroundColor Gray
+    Write-Host "  - Insufficient system resources (need 4GB+ RAM)" -ForegroundColor Gray
+    Write-Host "  - Network connectivity issues" -ForegroundColor Gray
+    Write-Host "  - Configuration file issues" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "[INFO] Try running this command manually to see detailed errors:" -ForegroundColor Cyan
+    Write-Host "docker $($buildArgs -join ' ')" -ForegroundColor Gray
+    exit 1
+}
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "[SUCCESS] ISO build completed!" -ForegroundColor Green

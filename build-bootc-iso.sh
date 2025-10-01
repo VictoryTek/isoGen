@@ -60,16 +60,33 @@ podman pull "$BOOTC_IMAGE"
 echo "[INFO] Building Anaconda ISO..."
 echo "This may take 10-30 minutes depending on your system."
 
-sudo podman run --rm -it --privileged \
-    --pull=newer \
-    --security-opt label=type:unconfined_t \
-    -v "$OUTPUT_DIR:/output:Z" \
-    -v /var/lib/containers/storage:/var/lib/containers/storage \
-    -v "$(pwd)/$CONFIG_FILE:/config.toml:Z" \
-    "$BUILDER_IMAGE" \
-    --type anaconda-iso \
-    --config /config.toml \
-    "$BOOTC_IMAGE"
+# Check which container runtime to use and build accordingly
+if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+    echo "[INFO] Using Podman..."
+    sudo podman run --rm -it --privileged \
+        --pull=newer \
+        --security-opt label=type:unconfined_t \
+        -v "$OUTPUT_DIR:/output:Z" \
+        -v /var/lib/containers/storage:/var/lib/containers/storage \
+        -v "$(pwd)/$CONFIG_FILE:/config.toml:Z" \
+        "$BUILDER_IMAGE" \
+        --type anaconda-iso \
+        --config /config.toml \
+        "$BOOTC_IMAGE"
+elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    echo "[INFO] Using Docker..."
+    docker run --rm -it --privileged \
+        --pull always \
+        -v "$OUTPUT_DIR:/output" \
+        -v "$(pwd)/$CONFIG_FILE:/config.toml" \
+        "$BUILDER_IMAGE" \
+        --type anaconda-iso \
+        --config /config.toml \
+        "$BOOTC_IMAGE"
+else
+    echo "[ERROR] No working container runtime found (podman or docker)"
+    exit 1
+fi
 
 if [[ $? -eq 0 ]]; then
     echo "[SUCCESS] ISO build completed!"

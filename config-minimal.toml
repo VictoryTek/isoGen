@@ -1,0 +1,20 @@
+# Minimal config.toml for testing - User creation only
+[customizations.installer.modules]
+enable = [
+  "org.fedoraproject.Anaconda.Modules.Users"
+]
+
+[customizations.installer.kickstart]
+contents = """
+#version=DEVEL
+# Minimal interactive installer - users can configure everything in UI
+
+# Basic language setting (user can change)
+lang en_US.UTF-8
+
+# Accept EULA automatically  
+eula --agreed
+
+# Use graphical installer
+graphical
+"""
