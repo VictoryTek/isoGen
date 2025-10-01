@@ -2,17 +2,30 @@
 set -euo pipefail
 
 # Universal bootc ISO Builder Script
-# Usage: ./build-bootc-iso.sh [bootc-image] [config-file]
+# Usage: ./build-bootc-iso.sh [bootc-image] [config-file] [iso-name]
 # Examples:
 #   ./build-bootc-iso.sh
 #   ./build-bootc-iso.sh quay.io/centos-bootc/centos-bootc:stream10
 #   ./build-bootc-iso.sh registry.redhat.io/rhel9/rhel-bootc:latest my-config.toml
-#   ./build-bootc-iso.sh quay.io/fedora/fedora-bootc:40 config.toml
+#   ./build-bootc-iso.sh quay.io/fedora/fedora-bootc:40 config.toml fedora-40-custom
 
 BOOTC_IMAGE="${1:-quay.io/centos-bootc/centos-bootc:stream10}"
 CONFIG_FILE="${2:-config.toml}"
+ISO_NAME="${3:-}"
 OUTPUT_DIR="$(pwd)/output"
 BUILDER_IMAGE="quay.io/centos-bootc/bootc-image-builder:latest"
+
+# Generate ISO name if not provided
+if [[ -z "$ISO_NAME" ]]; then
+    # Extract image name and tag for auto-naming
+    IMAGE_NAME_TAG=$(echo "$BOOTC_IMAGE" | sed 's|.*/||' | sed 's/:/-/g')
+    ISO_NAME="${IMAGE_NAME_TAG}-bootc-$(date +%Y%m%d)"
+    echo "[INFO] Auto-generated ISO name: $ISO_NAME"
+else
+    # Remove .iso extension if provided
+    ISO_NAME="${ISO_NAME%.iso}"
+    echo "[INFO] Using custom ISO name: $ISO_NAME"
+fi
 
 echo "[INFO] Building ISO for bootc image: $BOOTC_IMAGE"
 echo "[INFO] Using config: $CONFIG_FILE"
@@ -61,17 +74,33 @@ sudo podman run --rm -it --privileged \
 if [[ $? -eq 0 ]]; then
     echo "[SUCCESS] ISO build completed!"
     echo "[INFO] Built from bootc image: $BOOTC_IMAGE"
-    echo "Output files:"
-    ls -la "$OUTPUT_DIR"
     
-    # Find and display ISO details
+    # Find the generated ISO file
     ISO_FILE=$(find "$OUTPUT_DIR" -name "*.iso" | head -n 1)
     if [[ -n "$ISO_FILE" ]]; then
         ISO_SIZE=$(du -h "$ISO_FILE" | cut -f1)
-        echo "[INFO] Generated ISO: $(basename "$ISO_FILE") (${ISO_SIZE})"
+        NEW_ISO_NAME="${ISO_NAME}.iso"
+        NEW_ISO_PATH="$OUTPUT_DIR/$NEW_ISO_NAME"
+        
+        # Rename the ISO if it's not already named correctly
+        if [[ "$(basename "$ISO_FILE")" != "$NEW_ISO_NAME" ]]; then
+            echo "[INFO] Renaming ISO from '$(basename "$ISO_FILE")' to '$NEW_ISO_NAME'..."
+            if mv "$ISO_FILE" "$NEW_ISO_PATH" 2>/dev/null; then
+                echo "[SUCCESS] ISO renamed successfully!"
+            else
+                echo "[WARNING] Failed to rename ISO, keeping original name"
+                NEW_ISO_NAME=$(basename "$ISO_FILE")
+            fi
+        fi
+        
+        echo "[INFO] Generated ISO: $NEW_ISO_NAME (${ISO_SIZE})"
         echo "[INFO] This ISO provides full interactive Anaconda installer"
         echo "[INFO] Based on: $BOOTC_IMAGE"
+        echo "[INFO] Location: $OUTPUT_DIR"
     fi
+    
+    echo "Output files:"
+    ls -la "$OUTPUT_DIR"
 else
     echo "[ERROR] Build failed. Check the output above for details."
     exit 1
